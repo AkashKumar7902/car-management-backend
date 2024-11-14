@@ -185,7 +185,7 @@ func (cc *CarController) GetCar(c *gin.Context) {
 // @Param title formData string false "Title"
 // @Param description formData string false "Description"
 // @Param tags formData string false "Tags (comma-separated)"
-// @Param images formData string false "Images URLs or paths"
+// @Param images formData string false "Images"
 // @Success 200 {object} models.Car
 // @Failure 400 {object} error
 // @Failure 401 {object} error
@@ -213,35 +213,66 @@ func (cc *CarController) UpdateCar(c *gin.Context) {
 		return
 	}
 
-	var input struct {
-		Title       string   `form:"title"`
-		Description string   `form:"description"`
-		Tags        string   `form:"tags"`
-		Images      []string `form:"images"` // URLs or paths
-	}
-
-	if err := c.ShouldBind(&input); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+	// Parse form data
+	if err := c.Request.ParseMultipartForm(32 << 20); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Failed to parse form data"})
 		return
 	}
 
-	if input.Title != "" {
-		car.Title = input.Title
+	// Get form fields
+	title := c.PostForm("title")
+	description := c.PostForm("description")
+	tagsStr := c.PostForm("tags")
+
+	// Update car fields if provided
+	if title != "" {
+		car.Title = title
 	}
-	if input.Description != "" {
-		car.Description = input.Description
+	if description != "" {
+		car.Description = description
 	}
-	if input.Tags != "" {
-		tags := strings.Split(input.Tags, ",")
+	if tagsStr != "" {
+		tags := strings.Split(tagsStr, ",")
 		for i := range tags {
 			tags[i] = strings.TrimSpace(tags[i])
 		}
 		car.Tags = tags
 	}
-	if len(input.Images) > 0 {
-		car.Images = input.Images
+
+	// Handle image uploads
+	form := c.Request.MultipartForm
+	files := form.File["images"]
+	if len(files) > 10 {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Maximum 10 images allowed"})
+		return
 	}
 
+	newImageUrls := []string{}
+
+	for _, fileHeader := range files {
+		file, err := fileHeader.Open()
+		if err != nil {
+			c.JSON(http.StatusBadRequest, gin.H{"error": "Failed to open image"})
+			return
+		}
+		defer file.Close()
+
+		// Upload to Cloudinary
+		uploadResult, err := cc.Cloudinary.Upload.Upload(c, file, uploader.UploadParams{})
+		if err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to upload image"})
+			return
+		}
+
+		newImageUrls = append(newImageUrls, uploadResult.SecureURL)
+	}
+
+	// Append new images to existing images
+	if len(newImageUrls) > 0 {
+		car.Images = append(car.Images, newImageUrls...)
+	}
+
+	// Save updated car
 	if err := cc.DB.Save(&car).Error; err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to update car"})
 		return
