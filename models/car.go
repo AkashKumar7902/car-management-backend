@@ -3,7 +3,7 @@ package models
 import "gorm.io/gorm"
 
 type Car struct {
-	gorm.Model
+	gorm.Model `json:"-"`
 	UserID      uint     `json:"user_id"`
 	Title       string   `gorm:"not null" json:"title"`
 	Description string   `json:"description"`

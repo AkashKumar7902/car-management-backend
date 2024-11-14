@@ -18,207 +18,22 @@ type CarController struct {
 	Cloudinary *cloudinary.Cloudinary
 }
 
-// CreateCar handles creating a new car
+// CreateCar handles creating a new car with optional image uploads
+// @Summary Create a new car
+// @Description Create a new car with title, description, tags, and optional images
+// @Tags Cars
+// @Accept multipart/form-data
+// @Produce json
+// @Param title formData string true "Title"
+// @Param description formData string false "Description"
+// @Param tags formData string false "Tags (comma-separated)"
+// @Param images formData file false "Images"
+// @Success 201 {object} models.Car
+// @Failure 400 {object} error
+// @Failure 401 {object} error
+// @Failure 500 {object} error
+// @Router /api/cars [post]
 func (cc *CarController) CreateCar(c *gin.Context) {
-	userInterface, exists := c.Get("user")
-	if !exists {
-		c.JSON(http.StatusUnauthorized, gin.H{"error": "Unauthorized"})
-		return
-	}
-	user := userInterface.(models.User)
-
-	var input struct {
-		Title       string   `form:"title" binding:"required"`
-		Description string   `form:"description"`
-		Tags        string   `form:"tags"`
-		Images      []string `form:"images"` // URLs or paths
-	}
-
-	if err := c.ShouldBind(&input); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
-		return
-	}
-
-	tags := []string{}
-	if input.Tags != "" {
-		tags = strings.Split(input.Tags, ",")
-		for i := range tags {
-			tags[i] = strings.TrimSpace(tags[i])
-		}
-	}
-
-	car := models.Car{
-		UserID:      user.ID,
-		Title:       input.Title,
-		Description: input.Description,
-		Tags:        tags,
-		Images:      input.Images,
-	}
-
-	if err := cc.DB.Create(&car).Error; err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to create car"})
-		return
-	}
-
-	c.JSON(http.StatusCreated, car)
-}
-
-// ListCars lists all cars of the logged-in user
-func (cc *CarController) ListCars(c *gin.Context) {
-	userInterface, exists := c.Get("user")
-	if !exists {
-		c.JSON(http.StatusUnauthorized, gin.H{"error": "Unauthorized"})
-		return
-	}
-	user := userInterface.(models.User)
-
-	var cars []models.Car
-	if err := cc.DB.Where("user_id = ?", user.ID).Find(&cars).Error; err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to fetch cars"})
-		return
-	}
-
-	c.JSON(http.StatusOK, cars)
-}
-
-// GetCar retrieves a specific car
-func (cc *CarController) GetCar(c *gin.Context) {
-	userInterface, exists := c.Get("user")
-	if !exists {
-		c.JSON(http.StatusUnauthorized, gin.H{"error": "Unauthorized"})
-		return
-	}
-	user := userInterface.(models.User)
-
-	carID := c.Param("id")
-	var car models.Car
-	if err := cc.DB.First(&car, carID).Error; err != nil {
-		c.JSON(http.StatusNotFound, gin.H{"error": "Car not found"})
-		return
-	}
-
-	if car.UserID != user.ID {
-		c.JSON(http.StatusForbidden, gin.H{"error": "Access denied"})
-		return
-	}
-
-	c.JSON(http.StatusOK, car)
-}
-
-// UpdateCar updates a specific car
-func (cc *CarController) UpdateCar(c *gin.Context) {
-	userInterface, exists := c.Get("user")
-	if !exists {
-		c.JSON(http.StatusUnauthorized, gin.H{"error": "Unauthorized"})
-		return
-	}
-	user := userInterface.(models.User)
-
-	carID := c.Param("id")
-	var car models.Car
-	if err := cc.DB.First(&car, carID).Error; err != nil {
-		c.JSON(http.StatusNotFound, gin.H{"error": "Car not found"})
-		return
-	}
-
-	if car.UserID != user.ID {
-		c.JSON(http.StatusForbidden, gin.H{"error": "Access denied"})
-		return
-	}
-
-	var input struct {
-		Title       string   `form:"title"`
-		Description string   `form:"description"`
-		Tags        string   `form:"tags"`
-		Images      []string `form:"images"` // URLs or paths
-	}
-
-	if err := c.ShouldBind(&input); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
-		return
-	}
-
-	if input.Title != "" {
-		car.Title = input.Title
-	}
-	if input.Description != "" {
-		car.Description = input.Description
-	}
-	if input.Tags != "" {
-		tags := strings.Split(input.Tags, ",")
-		for i := range tags {
-			tags[i] = strings.TrimSpace(tags[i])
-		}
-		car.Tags = tags
-	}
-	if len(input.Images) > 0 {
-		car.Images = input.Images
-	}
-
-	if err := cc.DB.Save(&car).Error; err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to update car"})
-		return
-	}
-
-	c.JSON(http.StatusOK, car)
-}
-
-// DeleteCar deletes a specific car
-func (cc *CarController) DeleteCar(c *gin.Context) {
-	userInterface, exists := c.Get("user")
-	if !exists {
-		c.JSON(http.StatusUnauthorized, gin.H{"error": "Unauthorized"})
-		return
-	}
-	user := userInterface.(models.User)
-
-	carID := c.Param("id")
-	var car models.Car
-	if err := cc.DB.First(&car, carID).Error; err != nil {
-		c.JSON(http.StatusNotFound, gin.H{"error": "Car not found"})
-		return
-	}
-
-	if car.UserID != user.ID {
-		c.JSON(http.StatusForbidden, gin.H{"error": "Access denied"})
-		return
-	}
-
-	if err := cc.DB.Delete(&car).Error; err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to delete car"})
-		return
-	}
-
-	c.JSON(http.StatusOK, gin.H{"message": "Car deleted successfully"})
-}
-
-// SearchCars searches cars based on a keyword
-func (cc *CarController) SearchCars(c *gin.Context) {
-	userInterface, exists := c.Get("user")
-	if !exists {
-		c.JSON(http.StatusUnauthorized, gin.H{"error": "Unauthorized"})
-		return
-	}
-	user := userInterface.(models.User)
-
-	keyword := c.Query("keyword")
-	if keyword == "" {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Keyword query parameter is required"})
-		return
-	}
-
-	var cars []models.Car
-	searchQuery := "%" + keyword + "%"
-	if err := cc.DB.Where("user_id = ? AND (title ILIKE ? OR description ILIKE ? OR tags && ?)", user.ID, searchQuery, searchQuery, []string{keyword}).Find(&cars).Error; err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to search cars"})
-		return
-	}
-
-	c.JSON(http.StatusOK, cars)
-}
-
-// CreateCarWithCloudinary handles creating a new car with image uploads to Cloudinary
-func (cc *CarController) CreateCarWithCloudinary(c *gin.Context) {
 	userInterface, exists := c.Get("user")
 	if !exists {
 		c.JSON(http.StatusUnauthorized, gin.H{"error": "Unauthorized"})
@@ -296,4 +111,217 @@ func (cc *CarController) CreateCarWithCloudinary(c *gin.Context) {
 	}
 
 	c.JSON(http.StatusCreated, car)
+}
+
+// ListCars lists all cars of the logged-in user
+// @Summary List all cars
+// @Description Get a list of all cars for the logged-in user
+// @Tags Cars
+// @Accept json
+// @Produce json
+// @Success 200 {array} models.Car
+// @Failure 401 {object} error
+// @Failure 500 {object} error
+// @Router /api/cars [get]
+func (cc *CarController) ListCars(c *gin.Context) {
+	userInterface, exists := c.Get("user")
+	if !exists {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "Unauthorized"})
+		return
+	}
+	user := userInterface.(models.User)
+
+	var cars []models.Car
+	if err := cc.DB.Where("user_id = ?", user.ID).Find(&cars).Error; err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to fetch cars"})
+		return
+	}
+
+	c.JSON(http.StatusOK, cars)
+}
+
+// GetCar retrieves a specific car
+// @Summary Get a specific car
+// @Description Get car by ID for the logged-in user
+// @Tags Cars
+// @Accept json
+// @Produce json
+// @Param id path int true "Car ID"
+// @Success 200 {object} models.Car
+// @Failure 401 {object} error
+// @Failure 403 {object} error
+// @Failure 404 {object} error
+// @Router /api/cars/{id} [get]
+func (cc *CarController) GetCar(c *gin.Context) {
+	userInterface, exists := c.Get("user")
+	if !exists {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "Unauthorized"})
+		return
+	}
+	user := userInterface.(models.User)
+
+	carID := c.Param("id")
+	var car models.Car
+	if err := cc.DB.First(&car, carID).Error; err != nil {
+		c.JSON(http.StatusNotFound, gin.H{"error": "Car not found"})
+		return
+	}
+
+	if car.UserID != user.ID {
+		c.JSON(http.StatusForbidden, gin.H{"error": "Access denied"})
+		return
+	}
+
+	c.JSON(http.StatusOK, car)
+}
+
+// UpdateCar updates a specific car
+// @Summary Update a car
+// @Description Update car details for the logged-in user
+// @Tags Cars
+// @Accept multipart/form-data
+// @Produce json
+// @Param id path int true "Car ID"
+// @Param title formData string false "Title"
+// @Param description formData string false "Description"
+// @Param tags formData string false "Tags (comma-separated)"
+// @Param images formData string false "Images URLs or paths"
+// @Success 200 {object} models.Car
+// @Failure 400 {object} error
+// @Failure 401 {object} error
+// @Failure 403 {object} error
+// @Failure 404 {object} error
+// @Failure 500 {object} error
+// @Router /api/cars/{id} [put]
+func (cc *CarController) UpdateCar(c *gin.Context) {
+	userInterface, exists := c.Get("user")
+	if !exists {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "Unauthorized"})
+		return
+	}
+	user := userInterface.(models.User)
+
+	carID := c.Param("id")
+	var car models.Car
+	if err := cc.DB.First(&car, carID).Error; err != nil {
+		c.JSON(http.StatusNotFound, gin.H{"error": "Car not found"})
+		return
+	}
+
+	if car.UserID != user.ID {
+		c.JSON(http.StatusForbidden, gin.H{"error": "Access denied"})
+		return
+	}
+
+	var input struct {
+		Title       string   `form:"title"`
+		Description string   `form:"description"`
+		Tags        string   `form:"tags"`
+		Images      []string `form:"images"` // URLs or paths
+	}
+
+	if err := c.ShouldBind(&input); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	if input.Title != "" {
+		car.Title = input.Title
+	}
+	if input.Description != "" {
+		car.Description = input.Description
+	}
+	if input.Tags != "" {
+		tags := strings.Split(input.Tags, ",")
+		for i := range tags {
+			tags[i] = strings.TrimSpace(tags[i])
+		}
+		car.Tags = tags
+	}
+	if len(input.Images) > 0 {
+		car.Images = input.Images
+	}
+
+	if err := cc.DB.Save(&car).Error; err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to update car"})
+		return
+	}
+
+	c.JSON(http.StatusOK, car)
+}
+
+// DeleteCar deletes a specific car
+// @Summary Delete a car
+// @Description Delete a car by ID for the logged-in user
+// @Tags Cars
+// @Accept json
+// @Produce json
+// @Param id path int true "Car ID"
+// @Success 200 {object} error
+// @Failure 401 {object} error
+// @Failure 403 {object} error
+// @Failure 404 {object} error
+// @Router /api/cars/{id} [delete]
+func (cc *CarController) DeleteCar(c *gin.Context) {
+	userInterface, exists := c.Get("user")
+	if !exists {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "Unauthorized"})
+		return
+	}
+	user := userInterface.(models.User)
+
+	carID := c.Param("id")
+	var car models.Car
+	if err := cc.DB.First(&car, carID).Error; err != nil {
+		c.JSON(http.StatusNotFound, gin.H{"error": "Car not found"})
+		return
+	}
+
+	if car.UserID != user.ID {
+		c.JSON(http.StatusForbidden, gin.H{"error": "Access denied"})
+		return
+	}
+
+	if err := cc.DB.Delete(&car).Error; err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to delete car"})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{"message": "Car deleted successfully"})
+}
+
+// SearchCars searches cars based on a keyword
+// @Summary Search cars
+// @Description Search cars by keyword in title, description, or tags
+// @Tags Cars
+// @Accept json
+// @Produce json
+// @Param keyword query string true "Search keyword"
+// @Success 200 {array} models.Car
+// @Failure 400 {object} error
+// @Failure 401 {object} error
+// @Failure 500 {object} error
+// @Router /api/cars/search [get]
+func (cc *CarController) SearchCars(c *gin.Context) {
+	userInterface, exists := c.Get("user")
+	if !exists {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "Unauthorized"})
+		return
+	}
+	user := userInterface.(models.User)
+
+	keyword := c.Query("keyword")
+	if keyword == "" {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Keyword query parameter is required"})
+		return
+	}
+
+	var cars []models.Car
+	searchQuery := "%" + keyword + "%"
+	if err := cc.DB.Where("user_id = ? AND (title ILIKE ? OR description ILIKE ? OR tags && ?)", user.ID, searchQuery, searchQuery, []string{keyword}).Find(&cars).Error; err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to search cars"})
+		return
+	}
+
+	c.JSON(http.StatusOK, cars)
 }

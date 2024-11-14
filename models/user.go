@@ -6,11 +6,11 @@ import (
 )
 
 type User struct {
-	gorm.Model
-	Username string `gorm:"unique;not null" json:"username"`
-	Email    string `gorm:"unique;not null" json:"email"`
-	Password string `gorm:"not null" json:"-"`
-	Cars     []Car  `json:"cars"`
+	gorm.Model `json:"-"`
+	Username   string `gorm:"unique;not null" json:"username"`
+	Email      string `gorm:"unique;not null" json:"email"`
+	Password   string `gorm:"not null" json:"-"`
+	Cars       []Car  `json:"cars"`
 }
 
 // HashPassword hashes the user's password before saving

@@ -1,3 +1,5 @@
+// controllers/authController.go
+
 package controllers
 
 import (
@@ -22,15 +24,11 @@ type AuthController struct {
 // @Accept json
 // @Produce json
 //
-//	@Param user body struct {
-//	    Username string `json:"username" binding:"required"`
-//	    Email    string `json:"email" binding:"required,email"`
-//	    Password string `json:"password" binding:"required,min=6"`
-//	} true "User Info"
+// @Param user body models.User true "User Info"
 //
 // @Success 201 {object} models.User
-// @Failure 400 {object} gin.H{"error": string}
-// @Failure 500 {object} gin.H{"error": string}
+// @Failure 400 {object} error
+// @Failure 500 {object} error
 // @Router /api/users/signup [post]
 func (ac *AuthController) RegisterUser(c *gin.Context) {
 	var input struct {
@@ -90,15 +88,12 @@ func (ac *AuthController) RegisterUser(c *gin.Context) {
 // @Accept json
 // @Produce json
 //
-//	@Param user body struct {
-//	    Email    string `json:"email" binding:"required,email"`
-//	    Password string `json:"password" binding:"required"`
-//	} true "User Credentials"
+// @Param user body models.User true "User Credentials"
 //
 // @Success 200 {object} models.User
-// @Failure 400 {object} gin.H{"error": string}
-// @Failure 401 {object} gin.H{"error": string}
-// @Failure 500 {object} gin.H{"error": string}
+// @Failure 400 {object} error
+// @Failure 401 {object} error
+// @Failure 500 {object} error
 // @Router /api/users/login [post]
 func (ac *AuthController) LoginUser(c *gin.Context) {
 	var input struct {
