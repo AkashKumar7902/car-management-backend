@@ -93,7 +93,8 @@ const docTemplate = `{
                         "type": "file",
                         "description": "Images",
                         "name": "images",
-                        "in": "formData"
+                        "in": "formData",
+                        "maxItems": 10
                     }
                 ],
                 "responses": {
@@ -248,9 +249,10 @@ const docTemplate = `{
                     },
                     {
                         "type": "string",
-                        "description": "Images URLs or paths",
+                        "description": "Images",
                         "name": "images",
-                        "in": "formData"
+                        "in": "formData",
+                        "maxItems": 10
                     }
                 ],
                 "responses": {

@@ -21,8 +21,8 @@ func CarRoutes(r *gin.Engine, db *gorm.DB, cfg config.Config, cld *cloudinary.Cl
 
 	cars := r.Group("/api/cars").Use(authMiddleware)
 	{
-		cars.POST("/", carController.CreateCar)
-		cars.GET("/", carController.ListCars)
+		cars.POST("", carController.CreateCar)
+		cars.GET("", carController.ListCars)
 		cars.GET("/search", carController.SearchCars)
 		cars.GET("/:id", carController.GetCar)
 		cars.PUT("/:id", carController.UpdateCar)

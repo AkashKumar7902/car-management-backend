@@ -187,7 +187,7 @@ paths:
         in: formData
         name: tags
         type: string
-      - description: Images URLs or paths
+      - description: Images
         in: formData
         name: images
         type: string

@@ -1,6 +1,7 @@
 package controllers
 
 import (
+	"log"
 	"net/http"
 	"strings"
 
@@ -27,7 +28,7 @@ type CarController struct {
 // @Param title formData string true "Title"
 // @Param description formData string false "Description"
 // @Param tags formData string false "Tags (comma-separated)"
-// @Param images formData file false "Images"
+// @Param images formData file false "Images" maxItems(10)
 // @Success 201 {object} models.Car
 // @Failure 400 {object} error
 // @Failure 401 {object} error
@@ -59,50 +60,34 @@ func (cc *CarController) CreateCar(c *gin.Context) {
 		}
 	}
 
-	// Handle image uploads
-	form, err := c.MultipartForm()
-	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid multipart form"})
-		return
-	}
-
-	files := form.File["images"]
-	if len(files) > 10 {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Maximum 10 images allowed"})
-		return
-	}
-
-	imageURLs := []string{}
-	for _, file := range files {
-		// Open the file
-		f, err := file.Open()
-		if err != nil {
-			c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to open image"})
-			return
-		}
-		defer f.Close()
-
-		// Upload to Cloudinary
-		uploadParams := uploader.UploadParams{
-			Folder: "car_management",
-		}
-
-		uploadResult, err := cc.Cloudinary.Upload.Upload(c, f, uploadParams)
-		if err != nil {
-			c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to upload image"})
-			return
-		}
-
-		imageURLs = append(imageURLs, uploadResult.SecureURL)
-	}
-
-	// Create car
 	car := models.Car{
 		UserID:      user.ID,
 		Title:       title,
 		Description: description,
 		Tags:        tagList,
-		Images:      imageURLs,
+		Images:      []string{}, // Initialize as empty slice
+	}
+
+	// Handle image uploads
+	form, err := c.MultipartForm()
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid form data"})
+		return
+	}
+
+	files := form.File["images"]
+	for _, file := range files {
+		// Upload to Cloudinary
+		uploadParams := uploader.UploadParams{
+			Folder: "car_management",
+		}
+
+		uploadResult, err := cc.Cloudinary.Upload.Upload(c, file, uploadParams)
+		if err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "Image upload failed"})
+			return
+		}
+		car.Images = append(car.Images, uploadResult.SecureURL)
 	}
 
 	if err := cc.DB.Create(&car).Error; err != nil {
@@ -185,7 +170,7 @@ func (cc *CarController) GetCar(c *gin.Context) {
 // @Param title formData string false "Title"
 // @Param description formData string false "Description"
 // @Param tags formData string false "Tags (comma-separated)"
-// @Param images formData string false "Images"
+// @Param images formData string false "Images" maxItems(10)
 // @Success 200 {object} models.Car
 // @Failure 400 {object} error
 // @Failure 401 {object} error
@@ -334,25 +319,28 @@ func (cc *CarController) DeleteCar(c *gin.Context) {
 // @Failure 500 {object} error
 // @Router /api/cars/search [get]
 func (cc *CarController) SearchCars(c *gin.Context) {
-	userInterface, exists := c.Get("user")
-	if !exists {
-		c.JSON(http.StatusUnauthorized, gin.H{"error": "Unauthorized"})
-		return
-	}
-	user := userInterface.(models.User)
+    userInterface, exists := c.Get("user")
+    if !exists {
+        c.JSON(http.StatusUnauthorized, gin.H{"error": "Unauthorized"})
+        return
+    }
+    user := userInterface.(models.User)
 
-	keyword := c.Query("keyword")
-	if keyword == "" {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Keyword query parameter is required"})
-		return
-	}
+    keyword := c.Query("keyword")
+    if keyword == "" {
+        c.JSON(http.StatusBadRequest, gin.H{"error": "Keyword query parameter is required"})
+        return
+    }
 
-	var cars []models.Car
-	searchQuery := "%" + keyword + "%"
-	if err := cc.DB.Where("user_id = ? AND (title ILIKE ? OR description ILIKE ? OR tags && ?)", user.ID, searchQuery, searchQuery, []string{keyword}).Find(&cars).Error; err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to search cars"})
-		return
-	}
+    var cars []models.Car
+    if err := cc.DB.Where(
+        "user_id = ? AND (title ILIKE ? OR description ILIKE ? OR ? = ANY(tags))",
+        user.ID, "%"+keyword+"%", "%"+keyword+"%", keyword,
+    ).Find(&cars).Error; err != nil {
+        log.Println(err)
+        c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to search cars"})
+        return
+    }
 
-	c.JSON(http.StatusOK, cars)
+    c.JSON(http.StatusOK, cars)
 }

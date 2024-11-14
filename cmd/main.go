@@ -3,17 +3,29 @@ package main
 import (
 	"log"
 	"net/http"
+	"time"
 
 	"github.com/akashkumar7902/car-management-backend/config"
 	_ "github.com/akashkumar7902/car-management-backend/docs" // Import generated docs
-	"github.com/akashkumar7902/car-management-backend/models"
 	"github.com/akashkumar7902/car-management-backend/routes"
+	"github.com/gin-contrib/cors"
 	"github.com/gin-gonic/gin"
 	swaggerFiles "github.com/swaggo/files"
 	ginSwagger "github.com/swaggo/gin-swagger"
 	"gorm.io/driver/postgres"
 	"gorm.io/gorm"
 )
+
+func Default() gin.HandlerFunc {
+	config := cors.Config{
+		AllowMethods:     []string{"GET", "POST", "PUT", "PATCH", "DELETE", "HEAD", "OPTIONS"},
+		AllowHeaders:     []string{"Origin", "Content-Length", "Content-Type", "Authorization"},
+		AllowCredentials: false,
+		MaxAge:           12 * time.Hour,
+	}
+	config.AllowAllOrigins = true
+	return cors.New(config)
+}
 
 // @title Car Management API
 // @version 1.0
@@ -37,6 +49,7 @@ func main() {
 
 	// Initialize Gin
 	r := gin.Default()
+	r.Use(Default())
 
 	// Serve static files (uploads)
 	r.Static("/uploads", "./uploads")
@@ -48,11 +61,11 @@ func main() {
 		log.Fatal("Failed to connect to database:", err)
 	}
 
-	// Migrate models
-	err = db.AutoMigrate(&models.User{}, &models.Car{})
-	if err != nil {
-		log.Fatal("Failed to migrate database:", err)
-	}
+	// // Migrate models
+	// err = db.AutoMigrate(&models.User{}, &models.Car{})
+	// if err != nil {
+	// 	log.Fatal("Failed to migrate database:", err)
+	// }
 
 	// Initialize Routes
 	routes.AuthRoutes(r, db, cfg)

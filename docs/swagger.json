@@ -242,7 +242,7 @@
                     },
                     {
                         "type": "string",
-                        "description": "Images URLs or paths",
+                        "description": "Images",
                         "name": "images",
                         "in": "formData"
                     }

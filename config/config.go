@@ -27,12 +27,15 @@ func LoadConfig() Config {
 	}
 
 	return Config{
-		Port:       os.Getenv("PORT"),
-		DBHost:     os.Getenv("DB_HOST"),
-		DBPort:     os.Getenv("DB_PORT"),
-		DBUser:     os.Getenv("DB_USER"),
-		DBPassword: os.Getenv("DB_PASSWORD"),
-		DBName:     os.Getenv("DB_NAME"),
-		JWTSecret:  os.Getenv("JWT_SECRET"),
+		Port:           os.Getenv("PORT"),
+		DBHost:         os.Getenv("DB_HOST"),
+		DBPort:         os.Getenv("DB_PORT"),
+		DBUser:         os.Getenv("DB_USER"),
+		DBPassword:     os.Getenv("DB_PASSWORD"),
+		DBName:         os.Getenv("DB_NAME"),
+		JWTSecret:      os.Getenv("JWT_SECRET"),
+		CloudName:      os.Getenv("CLOUD_NAME"),
+		CloudAPIKey:    os.Getenv("CLOUD_API_KEY"),
+		CloudAPISecret: os.Getenv("CLOUD_API_SECRET"),
 	}
 }
