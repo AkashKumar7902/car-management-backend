@@ -56,7 +56,7 @@ func main() {
 
 	// Initialize Routes
 	routes.AuthRoutes(r, db, cfg)
-    routes.CarRoutes(r, db, cfg, cld)
+	routes.CarRoutes(r, db, cfg, cld)
 
 	// Swagger Documentation
 	r.GET("/api/docs/*any", ginSwagger.WrapHandler(swaggerFiles.Handler))

@@ -4,7 +4,7 @@ import (
 	"github.com/akashkumar7902/car-management-backend/config"
 	"github.com/akashkumar7902/car-management-backend/controllers"
 	"github.com/akashkumar7902/car-management-backend/middlewares"
-    "github.com/cloudinary/cloudinary-go/v2"
+	"github.com/cloudinary/cloudinary-go/v2"
 	"github.com/gin-gonic/gin"
 	"gorm.io/gorm"
 )

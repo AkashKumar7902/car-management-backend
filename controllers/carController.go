@@ -6,7 +6,7 @@ import (
 
 	"github.com/akashkumar7902/car-management-backend/config"
 	"github.com/akashkumar7902/car-management-backend/models"
-    "github.com/cloudinary/cloudinary-go/v2"
+	"github.com/cloudinary/cloudinary-go/v2"
 	"github.com/cloudinary/cloudinary-go/v2/api/uploader"
 	"github.com/gin-gonic/gin"
 	"gorm.io/gorm"
@@ -208,7 +208,8 @@ func (cc *CarController) SearchCars(c *gin.Context) {
 	}
 
 	var cars []models.Car
-	if err := cc.DB.Where("user_id = ? AND (title ILIKE ? OR description ILIKE ? OR tags @> ?)", user.ID, "%"+keyword+"%", "%"+keyword+"%", []string{keyword}).Find(&cars).Error; err != nil {
+	searchQuery := "%" + keyword + "%"
+	if err := cc.DB.Where("user_id = ? AND (title ILIKE ? OR description ILIKE ? OR tags && ?)", user.ID, searchQuery, searchQuery, []string{keyword}).Find(&cars).Error; err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to search cars"})
 		return
 	}
@@ -218,81 +219,81 @@ func (cc *CarController) SearchCars(c *gin.Context) {
 
 // CreateCarWithCloudinary handles creating a new car with image uploads to Cloudinary
 func (cc *CarController) CreateCarWithCloudinary(c *gin.Context) {
-    userInterface, exists := c.Get("user")
-    if !exists {
-        c.JSON(http.StatusUnauthorized, gin.H{"error": "Unauthorized"})
-        return
-    }
-    user := userInterface.(models.User)
+	userInterface, exists := c.Get("user")
+	if !exists {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "Unauthorized"})
+		return
+	}
+	user := userInterface.(models.User)
 
-    title := c.PostForm("title")
-    description := c.PostForm("description")
-    tags := c.PostForm("tags")
+	title := c.PostForm("title")
+	description := c.PostForm("description")
+	tags := c.PostForm("tags")
 
-    if title == "" {
-        c.JSON(http.StatusBadRequest, gin.H{"error": "Title is required"})
-        return
-    }
+	if title == "" {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Title is required"})
+		return
+	}
 
-    // Handle tags
-    tagList := []string{}
-    if tags != "" {
-        tagList = strings.Split(tags, ",")
-        for i := range tagList {
-            tagList[i] = strings.TrimSpace(tagList[i])
-        }
-    }
+	// Handle tags
+	tagList := []string{}
+	if tags != "" {
+		tagList = strings.Split(tags, ",")
+		for i := range tagList {
+			tagList[i] = strings.TrimSpace(tagList[i])
+		}
+	}
 
-    // Handle image uploads
-    form, err := c.MultipartForm()
-    if err != nil {
-        c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid multipart form"})
-        return
-    }
+	// Handle image uploads
+	form, err := c.MultipartForm()
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid multipart form"})
+		return
+	}
 
-    files := form.File["images"]
-    if len(files) > 10 {
-        c.JSON(http.StatusBadRequest, gin.H{"error": "Maximum 10 images allowed"})
-        return
-    }
+	files := form.File["images"]
+	if len(files) > 10 {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Maximum 10 images allowed"})
+		return
+	}
 
-    imageURLs := []string{}
-    for _, file := range files {
-        // Open the file
-        f, err := file.Open()
-        if err != nil {
-            c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to open image"})
-            return
-        }
-        defer f.Close()
+	imageURLs := []string{}
+	for _, file := range files {
+		// Open the file
+		f, err := file.Open()
+		if err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to open image"})
+			return
+		}
+		defer f.Close()
 
-        // Upload to Cloudinary
-        uploadParams := uploader.UploadParams{
-            Folder: "car_management",
-        }
+		// Upload to Cloudinary
+		uploadParams := uploader.UploadParams{
+			Folder: "car_management",
+		}
 
-        uploadResult, err := cc.Cloudinary.Upload.Upload(c, f, uploadParams)
-        if err != nil {
-            c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to upload image"})
-            return
-        }
+		uploadResult, err := cc.Cloudinary.Upload.Upload(c, f, uploadParams)
+		if err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to upload image"})
+			return
+		}
 
-        imageURLs = append(imageURLs, uploadResult.SecureURL)
-    }
+		imageURLs = append(imageURLs, uploadResult.SecureURL)
+	}
 
-    // Create car
-    car := models.Car{
-        UserID:     user.ID,
-        Title:      title,
-        Description: description,
-        Tags:       tagList,
-        Images:     imageURLs,
-    }
+	// Create car
+	car := models.Car{
+		UserID:      user.ID,
+		Title:       title,
+		Description: description,
+		Tags:        tagList,
+		Images:      imageURLs,
+	}
 
-    if err := cc.DB.Create(&car).Error; err != nil {
-        c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to create car"})
-        return
-    }
+	if err := cc.DB.Create(&car).Error; err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to create car"})
+		return
+	}
 
-    c.JSON(http.StatusCreated, car)
+	c.JSON(http.StatusCreated, car)
 }
